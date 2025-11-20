@@ -1,0 +1,50 @@
+package main
+
+import (
+	"log"
+	"net/http"
+	"os"
+
+	"github.com/go-chi/chi/middleware"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/cors"
+	"github.com/joho/godotenv"
+)
+
+func main() {
+
+	godotenv.Load(".env")
+	PORT := os.Getenv("PORT")
+
+	if PORT == "" {
+		log.Fatalln("PORT not found in environment")
+	}
+
+	router := chi.NewRouter()
+	router.Use(middleware.Logger)
+	router.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{"https://*", "http://*"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"*"},
+		ExposedHeaders:   []string{"links"},
+		AllowCredentials: false,
+		MaxAge:           300,
+	}))
+
+	v1Router := chi.NewRouter()
+	v1Router.Get("/healthz", handler_readiness)
+	v1Router.Get("/err", handler_error)
+
+	router.Mount("/v1", v1Router)
+
+	srv := http.Server{
+		Handler: router,
+		Addr:    ":" + PORT,
+	}
+
+	log.Println("Server is up and running on PORT: ", PORT)
+	err := srv.ListenAndServe()
+	if err != nil {
+		log.Fatal(err)
+	}
+}
